@@ -137,15 +137,15 @@ class YOLOLayer(nn.Module):
 
         # Add offset and scale with anchors (in grid space, i.e. 0-13)
         pred_boxes = FT(bs, self.nA, nG, nG, 4)
-        pred_conf = p[..., 4]  # Conf
-        pred_cls = p[..., 5:]  # Class
+        pred_conf = torch.sigmoid(p[..., 4])  # Conf
+        pred_cls = torch.sigmoid(p[..., 5:])  # Class
 
         # Training
         if targets is not None:
             MSELoss = nn.MSELoss()
             BCEWithLogitsLoss = nn.BCEWithLogitsLoss()
             CrossEntropyLoss = nn.CrossEntropyLoss()
-
+            L1Loss = nn.L1Loss()
             if batch_report:
                 gx = self.grid_x[:, :, :nG, :nG]
                 gy = self.grid_y[:, :, :nG, :nG]
@@ -167,10 +167,10 @@ class YOLOLayer(nn.Module):
             nB = len(targets)  # batch size
             k = nM / nB
             if nM > 0:
-                lx = k * MSELoss(x[mask], tx[mask])
-                ly = k * MSELoss(y[mask], ty[mask])
-                lw = k * MSELoss(w[mask], tw[mask])
-                lh = k * MSELoss(h[mask], th[mask])
+                lx = k * L1Loss(x[mask], tx[mask])
+                ly = k * L1Loss(y[mask], ty[mask])
+                lw = k * L1Loss(w[mask], tw[mask])
+                lh = k * L1Loss(h[mask], th[mask])
 
                 # self.tx.extend(tx[mask].data.numpy())
                 # self.ty.extend(ty[mask].data.numpy())
@@ -185,13 +185,13 @@ class YOLOLayer(nn.Module):
 
                 # lconf = k * BCEWithLogitsLoss(pred_conf[mask], mask[mask].float())
 
-                lcls = (k / 4) * CrossEntropyLoss(pred_cls[mask], torch.argmax(tcls, 1))
-                # lcls = (k * 10) * BCEWithLogitsLoss(pred_cls[mask], tcls.float())
+                # lcls = (k / 4) * CrossEntropyLoss(pred_cls[mask], torch.argmax(tcls, 1))
+                lcls =  L1Loss(pred_cls[mask], tcls.float())
             else:
                 lx, ly, lw, lh, lcls, lconf = FT([0]), FT([0]), FT([0]), FT([0]), FT([0]), FT([0])
 
             # lconf += k * BCEWithLogitsLoss(pred_conf[~mask], mask[~mask].float())
-            lconf = (k * 64) * BCEWithLogitsLoss(pred_conf, mask.float())
+            lconf =  L1Loss(pred_conf, mask.float())
 
             # Sum loss components
             balance_losses_flag = False
@@ -223,7 +223,7 @@ class YOLOLayer(nn.Module):
 
             # If not in training phase return predictions
             output = torch.cat((pred_boxes.view(bs, -1, 4) * stride,
-                                torch.sigmoid(pred_conf.view(bs, -1, 1)), pred_cls.view(bs, -1, self.nC)), -1)
+                                pred_conf.view(bs, -1, 1), pred_cls.view(bs, -1, self.nC)), -1)
             return output.data
 
 
