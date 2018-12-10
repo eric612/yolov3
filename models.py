@@ -167,10 +167,10 @@ class YOLOLayer(nn.Module):
             nB = len(targets)  # batch size
             k = nM / nB
             if nM > 0:
-                lx = k * L1Loss(x[mask], tx[mask])
-                ly = k * L1Loss(y[mask], ty[mask])
-                lw = k * L1Loss(w[mask], tw[mask])
-                lh = k * L1Loss(h[mask], th[mask])
+                lx = L1Loss(x[mask], tx[mask])
+                ly = L1Loss(y[mask], ty[mask])
+                lw = L1Loss(w[mask], tw[mask])
+                lh = L1Loss(h[mask], th[mask])
 
                 # self.tx.extend(tx[mask].data.numpy())
                 # self.ty.extend(ty[mask].data.numpy())
@@ -191,7 +191,7 @@ class YOLOLayer(nn.Module):
                 lx, ly, lw, lh, lcls, lconf = FT([0]), FT([0]), FT([0]), FT([0]), FT([0]), FT([0])
 
             # lconf += k * BCEWithLogitsLoss(pred_conf[~mask], mask[~mask].float())
-            lconf =  L1Loss(pred_conf, mask.float())
+            lconf = L1Loss(pred_conf, mask.float())
 
             # Sum loss components
             balance_losses_flag = False
